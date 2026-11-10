@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TURBO PARTY RACE — Écran TV Hôte</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=Orbitron:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/host.css" />
+</head>
+<body>
+  <!-- Fullscreen 16:9 Responsive Stage -->
+  <div id="tv-stage" class="tv-stage">
+    <!-- Main 1920x1080 Game & Track Canvas (Always rendered in background, even in Lobby!) -->
+    <canvas id="race-canvas" width="1920" height="1080"></canvas>
+
+    <!-- Persistent Top-Right Utility Controls -->
+    <div class="top-utility-bar">
+      <div id="room-pill-mini" class="room-pill-mini hidden">
+        <span class="pill-label">SALON</span>
+        <strong id="mini-room-code">----</strong>
+      </div>
+      <button id="btn-mute" class="utility-btn" title="Activer / Couper le son (M)">
+        <span id="mute-icon">🔊</span>
+        <span id="mute-label">SON ON</span>
+      </button>
+      <button id="btn-fullscreen" class="utility-btn" title="Plein écran (F)">
+        <span>⛶</span>
+      </button>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- 1. VUE LOBBY (Overlay Arcade Néon par-dessus le circuit animé)   -->
+    <!-- ================================================================= -->
+    <section id="lobby-view" class="view-overlay active">
+      <div class="lobby-container">
+        <!-- Header Brand -->
+        <header class="lobby-header">
+          <div class="title-badge">ÉDITION GRAND PRIX MULTIJOUEUR • JUSQU'À 8 PILOTES</div>
+          <h1 class="game-title">
+            <span class="title-turbo">TURBO</span>
+            <span class="title-party">PARTY</span>
+            <span class="title-race">RACE</span>
+          </h1>
+        </header>
+
+        <!-- Main Lobby Content: Left Join Card + Right 8-Slot Driver Grid -->
+        <div class="lobby-main-grid">
+          <!-- Left Column: QR Code, Room Code & URL -->
+          <aside class="join-panel">
+            <div class="join-step-header">
+              <span class="step-badge">1</span>
+              <div>
+                <h2>REJOINDRE SUR MOBILE</h2>
+                <p>Votre smartphone devient le volant !</p>
+              </div>
+            </div>
+
+            <div class="qr-card-wrapper">
+              <div id="qr-container" class="qr-white-frame">
+                <div class="qr-loading">Génération du QR Code...</div>
+              </div>
+            </div>
+
+            <div class="room-code-box">
+              <span class="room-code-caption">CODE DU SALON</span>
+              <div id="lobby-room-code" class="room-code-giant">----</div>
+            </div>
+
+            <div class="join-url-box">
+              <a id="join-url-link" href="#" target="_blank" rel="noopener" class="join-url-text">
+                Chargement du lien...
+              </a>
+              <button id="btn-copy-url" class="btn-copy-url" type="button">
+                📋 Copier le lien
+              </button>
+            </div>
+
+            <div class="keyboard-hint">
+              💡 <strong>Astuce :</strong> Le 1er joueur sur mobile obtient la couronne 👑 Hôte. Clavier PC aussi actif (Flèches/WASD + Espace + E).
+            </div>
+          </aside>
+
+          <!-- Right Column: 8 Driver Slots + Lobby Actions -->
+          <main class="drivers-panel">
+            <div class="drivers-panel-header">
+              <div class="drivers-title-group">
+                <span class="step-badge">2</span>
+                <div>
+                  <h2>GRILLE DE DÉPART <span id="driver-count-badge" class="driver-count-badge">0 / 8</span></h2>
+                  <p>Appuyez sur le klaxon 📯 depuis votre téléphone pour tester votre voiture !</p>
+                </div>
+              </div>
+
+              <div class="bot-controls">
+                <button id="btn-add-bot" class="btn-bot btn-bot-add" type="button">
+                  🤖 + Ajouter un Bot IA
+                </button>
+                <button id="btn-remove-bot" class="btn-bot btn-bot-remove" type="button" disabled>
+                  − Retirer Bot
+                </button>
+              </div>
+            </div>
+
+            <!-- 8 Slots Grid -->
+            <div id="drivers-grid" class="drivers-grid">
+              <!-- Populated dynamically by host.js -->
+            </div>
+
+            <!-- Bottom Launch Bar -->
+            <div class="lobby-footer-actions">
+              <div id="lobby-status-msg" class="lobby-status-msg">
+                En attente d'au moins 1 pilote (humain ou Bot IA) pour démarrer...
+              </div>
+              <button id="btn-start-race" class="btn-start-race" type="button" disabled>
+                <span class="start-icon">🏁</span>
+                <span class="start-text">LANCER LA COURSE</span>
+              </button>
+            </div>
+          </main>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 2. VUE COURSE (HUD Tête Haute + Killfeed + Décompte 3, 2, 1, GO!) -->
+    <!-- ================================================================= -->
+    <section id="race-hud" class="race-hud hidden">
+      <!-- Top Leaderboard Bar (1st to 8th in live order) -->
+      <div id="hud-standings" class="hud-standings">
+        <!-- Populated dynamically by host.js -->
+      </div>
+
+      <!-- Arcade Killfeed / Live Event Banner (Top Center below standings) -->
+      <div id="killfeed-container" class="killfeed-container"></div>
+
+      <!-- Giant Center Countdown (3, 2, 1, GO!) -->
+      <div id="countdown-overlay" class="countdown-overlay hidden">
+        <div id="countdown-Lights" class="countdown-lights">
+          <span class="traffic-light" id="light-1"></span>
+          <span class="traffic-light" id="light-2"></span>
+          <span class="traffic-light" id="light-3"></span>
+        </div>
+        <div id="countdown-text" class="countdown-text">3</div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 3. VUE PODIUM / FIN DE COURSE                                     -->
+    <!-- ================================================================= -->
+    <section id="podium-view" class="view-overlay hidden">
+      <div class="podium-container">
+        <header class="podium-header">
+          <div class="title-badge">DRAPEAU À DAMIER • RÉSULTATS OFFICIELS</div>
+          <h2 class="podium-title">🏆 PODIUM DU GRAND PRIX 🏆</h2>
+        </header>
+
+        <div class="podium-content-grid">
+          <!-- Top 3 Animated Steps -->
+          <div id="podium-top3" class="podium-top3">
+            <!-- Populated dynamically: 2nd, 1st, 3rd -->
+          </div>
+
+          <!-- Full Standings Table (1st to 8th with times) -->
+          <div class="podium-table-card">
+            <h3>CLASSEMENT COMPLET</h3>
+            <div id="podium-standings-list" class="podium-standings-list">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <footer class="podium-actions">
+          <button id="btn-restart-race" class="btn-start-race" type="button">
+            <span>🔄</span>
+            <span>RELANCER LA COURSE IMMÉDIATEMENT</span>
+          </button>
+          <button id="btn-back-lobby" class="btn-secondary-tv" type="button">
+            <span>🏠</span>
+            <span>RETOUR AU SALON</span>
+          </button>
+        </footer>
+      </div>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/host.js"></script>
+</body>
+</html>

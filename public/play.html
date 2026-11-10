@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0b0f19">
+  <title>Turbo Party Race — Manette</title>
+  <link rel="stylesheet" href="/css/play.css">
+</head>
+<body>
+  <!-- Contournement Haptique Safari iOS 17.4+ (Taptic Engine via checkbox switch) -->
+  <label id="ios-haptic-label" style="position:fixed;opacity:0;pointer-events:none;left:-9999px;">
+    <input type="checkbox" switch id="ios-haptic-switch">
+  </label>
+
+  <!-- Flash visuel de retour haptique (collisions, bonus, onde de choc) -->
+  <div id="haptic-flash" class="haptic-flash"></div>
+
+  <!-- =========================================================================
+       ÉCRAN 1 : CONNEXION AU SALON (#join-screen)
+       Compatible Portrait & Paysage pour faciliter la saisie clavier
+       ========================================================================= -->
+  <section id="join-screen" class="screen active">
+    <div class="join-card">
+      <div class="brand-header">
+        <span class="brand-badge">MANETTE 4G / 5G / WI-FI</span>
+        <h1>🏎️ TURBO PARTY RACE</h1>
+        <p class="brand-subtitle">Entrez votre pseudo pour prendre le volant sur la TV</p>
+      </div>
+
+      <form id="join-form" autocomplete="off" novalidate>
+        <div class="form-row">
+          <div class="input-group room-group">
+            <label for="room-input">CODE SALON</label>
+            <input
+              type="text"
+              id="room-input"
+              maxlength="4"
+              placeholder="ABCD"
+              autocapitalize="characters"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+              required
+            >
+          </div>
+
+          <div class="input-group name-group">
+            <label for="name-input">VOTRE PSEUDO</label>
+            <input
+              type="text"
+              id="name-input"
+              maxlength="12"
+              placeholder="Pilote..."
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+              required
+            >
+          </div>
+        </div>
+
+        <div id="join-error" class="join-error" hidden></div>
+
+        <button type="submit" id="join-btn" class="join-btn">
+          🏎️ REJOINDRE LA COURSE
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       ÉCRAN 2 : MANETTE DE COURSE (#controller-screen)
+       ========================================================================= -->
+  <section id="controller-screen" class="screen" hidden>
+    <!-- Overlay d'invitation à tourner le téléphone en mode Paysage -->
+    <div id="portrait-overlay" class="portrait-overlay">
+      <div class="portrait-card">
+        <div class="rotate-phone-icon">📱🔄</div>
+        <h2>Tournez votre téléphone</h2>
+        <p>Jouez à l'horizontale (mode Paysage) pour avoir les pouces sur le volant et les pédales !</p>
+        <button type="button" id="dismiss-portrait-btn" class="dismiss-portrait-btn">
+          Continuer quand même
+        </button>
+      </div>
+    </div>
+
+    <!-- Barre supérieure de télémétrie aux couleurs du joueur -->
+    <header id="telemetry-bar" class="telemetry-bar">
+      <div class="telemetry-player">
+        <span id="player-color-dot" class="player-color-dot"></span>
+        <span id="player-name-label" class="player-name-label">PILOTE</span>
+        <span id="connection-dot" class="connection-dot online" title="Connecté"></span>
+      </div>
+
+      <div class="telemetry-race">
+        <div class="telemetry-stat rank-box">
+          <span class="stat-label">POS</span>
+          <span id="telemetry-position" class="stat-value">--</span>
+        </div>
+        <div class="telemetry-stat lap-box">
+          <span class="stat-label">TOUR</span>
+          <span id="telemetry-lap" class="stat-value">1/3</span>
+        </div>
+      </div>
+
+      <div class="telemetry-actions">
+        <!-- Bouton Créateur (Lancer la partie / Rejouer) visible uniquement pour le 1er joueur -->
+        <button type="button" id="creator-action-btn" class="top-action-btn creator-btn" hidden>
+          🏁 LANCER LA PARTIE
+        </button>
+
+        <!-- Bouton Klaxon & Saut sur la TV -->
+        <button type="button" id="horn-btn" class="top-action-btn horn-btn" aria-label="Klaxon">
+          📢 KLAXON
+        </button>
+      </div>
+    </header>
+
+    <!-- Corps de la Manette en 3 Zones Ergonomiques -->
+    <main class="controller-pad" id="controller-pad">
+      <!-- ZONE GAUCHE : DIRECTION (Supporte le glissement continu Gauche <-> Droite) -->
+      <div class="pad-zone zone-steering" id="steering-zone">
+        <div class="dpad-container">
+          <div class="ctrl-btn btn-steer btn-left" id="btn-left" data-control="left">
+            <span class="steer-arrow">◀</span>
+            <span class="steer-text">GAUCHE</span>
+          </div>
+          <div class="ctrl-btn btn-steer btn-right" id="btn-right" data-control="right">
+            <span class="steer-arrow">▶</span>
+            <span class="steer-text">DROITE</span>
+          </div>
+        </div>
+        <div class="zone-hint">GLISSEZ LE POUCE GAUCHE ◀ ▶</div>
+      </div>
+
+      <!-- ZONE CENTRALE : OBJET BONUS & INFOS COURSE -->
+      <div class="pad-zone zone-center">
+        <div id="race-status-banner" class="race-status-banner">
+          EN ATTENTE DU DÉPART...
+        </div>
+
+        <button type="button" id="btn-item" class="btn-item empty" disabled>
+          <span id="item-icon" class="item-icon">🎲</span>
+          <span id="item-label" class="item-label">AUCUN BONUS</span>
+          <span id="item-sub" class="item-sub">Traversez un cube mystère</span>
+        </button>
+      </div>
+
+      <!-- ZONE DROITE : PÉDALES D'ACTION (ACCÉLÉRER + FREIN / DRIFT) -->
+      <div class="pad-zone zone-pedals" id="pedals-zone">
+        <div class="ctrl-btn btn-pedal btn-accel" id="btn-accel" data-control="accel">
+          <span class="pedal-icon">🚀</span>
+          <span class="pedal-title">ACCÉLÉRER</span>
+          <span class="pedal-sub">Maintenir pour avancer</span>
+        </div>
+
+        <div class="ctrl-btn btn-pedal btn-drift" id="btn-drift" data-control="drift">
+          <span class="pedal-icon">💨</span>
+          <span class="pedal-title">FREIN / DRIFT</span>
+          <span class="pedal-sub">Déraper en virage = Boost !</span>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/play.js"></script>
+</body>
+</html>
