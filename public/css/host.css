@@ -100,6 +100,52 @@ body {
   letter-spacing: 0.1em;
 }
 
+.screen-count-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(0, 245, 212, 0.5);
+  font-family: var(--font-arcade);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  box-shadow: 0 0 12px rgba(0, 245, 212, 0.2);
+}
+
+.screen-mirror-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.22);
+  border: 1.5px solid var(--neon-pink);
+  font-family: var(--font-arcade);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #ff3366;
+  letter-spacing: 0.08em;
+  animation: pulseMirror 2s infinite ease-in-out;
+}
+
+@keyframes pulseMirror {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 51, 102, 0.3); opacity: 1; }
+  50% { box-shadow: 0 0 18px rgba(255, 51, 102, 0.7); opacity: 0.85; }
+}
+
+.btn-duplicate-screen {
+  background: rgba(0, 245, 212, 0.14);
+  border-color: rgba(0, 245, 212, 0.5);
+  color: #00f5d4;
+}
+.btn-duplicate-screen:hover {
+  background: rgba(0, 245, 212, 0.28);
+  border-color: #00f5d4;
+}
+
 .utility-btn {
   display: inline-flex;
   align-items: center;
@@ -368,6 +414,60 @@ body {
 
 .btn-copy-url:hover {
   background: rgba(0, 245, 212, 0.28);
+  transform: translateY(-1px);
+}
+
+.duplicate-screen-card {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px dashed rgba(0, 245, 212, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.duplicate-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.duplicate-icon {
+  font-size: 1.3rem;
+}
+
+.duplicate-title {
+  display: block;
+  font-family: var(--font-arcade);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--neon-cyan);
+}
+
+.duplicate-sub {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.btn-copy-tv-url {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 245, 212, 0.4);
+  background: rgba(0, 245, 212, 0.12);
+  color: #ffffff;
+  font-family: var(--font-arcade);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-tv-url:hover {
+  background: rgba(0, 245, 212, 0.25);
+  border-color: var(--neon-cyan);
   transform: translateY(-1px);
 }
 

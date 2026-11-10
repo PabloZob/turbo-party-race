@@ -71,6 +71,7 @@ export interface RoomState {
 interface InternalRoom extends RoomState {
   hostSocketId: string;
   hostConnected: boolean;
+  spectatorSocketIds: Set<string>;
   createdAt: number;
 }
 
@@ -79,6 +80,7 @@ const rooms = new Map<string, InternalRoom>();
 const disconnectTimers = new Map<string, NodeJS.Timeout>();
 const hostDisconnectTimers = new Map<string, NodeJS.Timeout>();
 const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>();
+const socketToScreen = new Map<string, { roomCode: string; isMirror: boolean }>();
 
 // ============================================================================
 // FONCTIONS UTILITAIRES
@@ -230,7 +232,7 @@ const publicDir = path.join(__dirname, '../public');
 app.use(express.static(publicDir));
 
 // Routes principales HTML
-app.get(['/', '/host'], (_req: Request, res: Response) => {
+app.get(['/', '/host', '/tv', '/spectate'], (_req: Request, res: Response) => {
   res.sendFile(path.join(publicDir, 'host.html'));
 });
 
@@ -296,7 +298,7 @@ io.on('connection', (socket: Socket) => {
   socket.on(
     'host:create_room',
     (
-      payloadOrAck?: { existingRoomCode?: string; roomCode?: string } | ((res: unknown) => void),
+      payloadOrAck?: { existingRoomCode?: string; roomCode?: string; isMirror?: boolean; role?: string } | ((res: unknown) => void),
       maybeAck?: (res: unknown) => void
     ) => {
       const payload = typeof payloadOrAck === 'object' && payloadOrAck !== null ? payloadOrAck : {};
@@ -308,20 +310,52 @@ io.on('connection', (socket: Socket) => {
 
       if (requestedCode && rooms.has(requestedCode)) {
         const room = rooms.get(requestedCode)!;
+        const wantMirror = Boolean(payload.isMirror || payload.role === 'mirror');
+
+        // Cas A : Connexion comme Écran Miroir supplémentaire
+        if (wantMirror || (room.hostConnected && room.hostSocketId !== socket.id)) {
+          room.spectatorSocketIds.add(socket.id);
+          socketToScreen.set(socket.id, { roomCode: requestedCode, isMirror: true });
+          socket.join(requestedCode);
+          socket.join(`${requestedCode}:screens`);
+
+          const serialized = serializeRoom(room);
+          const responsePayload = {
+            ok: true,
+            isMirror: true,
+            roomCode: requestedCode,
+            ...serialized
+          };
+
+          socket.emit('room:created', responsePayload);
+          socket.emit('room:state', serialized);
+          io.to(requestedCode).emit('host:screens_count', {
+            screenCount: 1 + room.spectatorSocketIds.size
+          });
+          if (typeof ack === 'function') ack(responsePayload);
+          return;
+        }
+
+        // Cas B : Reconnexion de l'Hôte Principal
         clearHostDisconnectTimer(requestedCode);
         room.hostSocketId = socket.id;
         room.hostConnected = true;
+        socketToScreen.set(socket.id, { roomCode: requestedCode, isMirror: false });
         socket.join(requestedCode);
 
         const serialized = serializeRoom(room);
         const responsePayload = {
           ok: true,
+          isMirror: false,
           roomCode: requestedCode,
           ...serialized
         };
 
         socket.emit('room:created', responsePayload);
         socket.emit('room:state', serialized);
+        io.to(requestedCode).emit('host:screens_count', {
+          screenCount: 1 + room.spectatorSocketIds.size
+        });
         if (typeof ack === 'function') ack(responsePayload);
         return;
       }
@@ -334,22 +368,35 @@ io.on('connection', (socket: Socket) => {
         maxPlayers: 8,
         hostSocketId: socket.id,
         hostConnected: true,
+        spectatorSocketIds: new Set<string>(),
         createdAt: Date.now()
       };
 
       rooms.set(roomCode, newRoom);
+      socketToScreen.set(socket.id, { roomCode, isMirror: false });
       socket.join(roomCode);
 
       const serialized = serializeRoom(newRoom);
       const responsePayload = {
         ok: true,
+        isMirror: false,
         roomCode,
         ...serialized
       };
 
       socket.emit('room:created', responsePayload);
       socket.emit('room:state', serialized);
+      io.to(roomCode).emit('host:screens_count', { screenCount: 1 });
       if (typeof ack === 'function') ack(responsePayload);
+    }
+  );
+
+  socket.on(
+    'host:broadcast_frame',
+    (payload?: { roomCode?: string; frame?: unknown }) => {
+      const room = findRoomForHost(socket, payload?.roomCode);
+      if (!room) return;
+      socket.to(`${room.roomCode}:screens`).emit('screen:frame', payload?.frame);
     }
   );
 
@@ -802,7 +849,22 @@ io.on('connection', (socket: Socket) => {
   // --------------------------------------------------------------------------
 
   socket.on('disconnect', () => {
-    // A. Vérifier si ce socket était l'écran Hôte (TV) d'un salon
+    // A. Vérifier si ce socket était un écran miroir ou principal
+    const screenInfo = socketToScreen.get(socket.id);
+    if (screenInfo) {
+      socketToScreen.delete(socket.id);
+      if (screenInfo.isMirror) {
+        const room = rooms.get(screenInfo.roomCode);
+        if (room) {
+          room.spectatorSocketIds.delete(socket.id);
+          io.to(room.roomCode).emit('host:screens_count', {
+            screenCount: 1 + room.spectatorSocketIds.size
+          });
+        }
+      }
+    }
+
+    // B. Vérifier si ce socket était l'écran Hôte Principal (TV) d'un salon
     for (const [roomCode, room] of rooms.entries()) {
       if (room.hostSocketId === socket.id) {
         room.hostConnected = false;
@@ -812,6 +874,20 @@ io.on('connection', (socket: Socket) => {
           hostDisconnectTimers.delete(roomCode);
           const currentRoom = rooms.get(roomCode);
           if (currentRoom && !currentRoom.hostConnected) {
+            // S'il existe un écran miroir connecté, le promouvoir en hôte principal !
+            if (currentRoom.spectatorSocketIds.size > 0) {
+              const nextHostSocketId = currentRoom.spectatorSocketIds.values().next().value!;
+              currentRoom.spectatorSocketIds.delete(nextHostSocketId);
+              currentRoom.hostSocketId = nextHostSocketId;
+              currentRoom.hostConnected = true;
+              socketToScreen.set(nextHostSocketId, { roomCode, isMirror: false });
+              io.to(nextHostSocketId).emit('host:promoted_to_primary', { roomCode });
+              io.to(roomCode).emit('host:screens_count', {
+                screenCount: 1 + currentRoom.spectatorSocketIds.size
+              });
+              return;
+            }
+
             io.to(roomCode).emit('room:closed', {
               roomCode,
               message: 'Le salon a été fermé par l’écran principal.'
@@ -825,7 +901,7 @@ io.on('connection', (socket: Socket) => {
       }
     }
 
-    // B. Vérifier si ce socket était un joueur humain
+    // C. Vérifier si ce socket était un joueur humain
     const found = findPlayerAndRoom(socket);
     socketToPlayer.delete(socket.id);
 

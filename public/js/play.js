@@ -246,8 +246,18 @@
       nameInput.value = savedName;
     }
 
+    const openTvLink = document.getElementById('open-tv-screen-link');
+    const updateTvHref = () => {
+      const code = (roomInput.value || '').trim().toUpperCase();
+      if (openTvLink) {
+        openTvLink.href = code ? `/tv?room=${code}` : '/tv';
+      }
+    };
+    updateTvHref();
+
     roomInput.addEventListener('input', () => {
       roomInput.value = roomInput.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+      updateTvHref();
       hideError();
     });
 

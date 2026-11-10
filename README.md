@@ -9,6 +9,7 @@
 ## ✨ Fonctionnalités Principales
 
 - 📱 **Connexion Instantanée par QR Code (Wi-Fi ou 4G/5G)** : Scannez le QR Code affiché sur la TV, entrez votre pseudo et votre téléphone se transforme immédiatement en manette de course.
+- 📺 **Mode Multi-Écrans / Duplication TV en Direct** : Vous n'êtes pas tous devant la même TV ? Ouvrez l'adresse `/tv?room=CODE` sur une 2e TV, un PC portable ou une tablette : la course est diffusée simultanément à 60 FPS sur tous les écrans connectés !
 - 🔄 **Reconnexion Automatique 4G/5G (10 secondes)** : Grâce à un jeton de session persistant (`playerToken`), si un joueur perd brièvement le réseau ou verrouille son écran par erreur, il reprend instantanément le contrôle de sa voiture sans quitter la course.
 - 🏎️ **Physique Arcade & Drift façon Mario Kart** :
   - Maintenez **FREIN / DRIFT** dans un virage tout en accélérant pour déraper.
@@ -42,8 +43,9 @@ npm start
 ```
 
 Ouvrez ensuite votre navigateur sur :
-- 📺 **Écran TV (Hôte)** : [http://localhost:3000](http://localhost:3000)
-- 📱 **Manette Joueur (Test local)** : [http://localhost:3000/play](http://localhost:3000/play)
+- 📺 **Écran TV Principal (Hôte)** : [http://localhost:3000](http://localhost:3000)
+- 📺 **2e Écran TV / PC / Tablette (Miroir en direct)** : [http://localhost:3000/tv?room=CODE](http://localhost:3000/tv)
+- 📱 **Manette Joueur (Smartphone 4G/5G)** : [http://localhost:3000/play](http://localhost:3000/play)
 
 ---
 

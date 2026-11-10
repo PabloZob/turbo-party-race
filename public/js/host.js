@@ -93,6 +93,15 @@ const muteIcon = document.getElementById('mute-icon');
 const muteLabel = document.getElementById('mute-label');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 
+const btnDuplicateScreen = document.getElementById('btn-duplicate-screen');
+const btnCopyTvUrl = document.getElementById('btn-copy-tv-url');
+const screenCountPill = document.getElementById('screen-count-pill');
+const screenCountText = document.getElementById('screen-count-text');
+const screenMirrorBadge = document.getElementById('screen-mirror-badge');
+
+let isMirrorMode = false;
+let lastFrameBroadcastTime = 0;
+
 // ============================================================================
 // TRACK GEOMETRY & OFFSCREEN RENDERING
 // ============================================================================
@@ -1364,6 +1373,19 @@ function updateSingleCarPhysics(car, dtNorm, dtSec, isInteractiveRace) {
   if (car.honkVisualTimer > 0) {
     car.honkVisualTimer = Math.max(0, car.honkVisualTimer - dtSec);
   }
+
+  // En Mode Miroir (Écran 2 / Spectateur), interpolation fluide 60 FPS des coordonnées reçues
+  if (isMirrorMode) {
+    if (typeof car.targetX === 'number') {
+      car.x += (car.targetX - car.x) * Math.min(1, 0.45 * dtNorm);
+      car.y += (car.targetY - car.y) * Math.min(1, 0.45 * dtNorm);
+      let diffAngle = car.targetAngle - car.angle;
+      while (diffAngle > Math.PI) diffAngle -= Math.PI * 2;
+      while (diffAngle < -Math.PI) diffAngle += Math.PI * 2;
+      car.angle += diffAngle * Math.min(1, 0.45 * dtNorm);
+    }
+    return;
+  }
   if (car.invulnerableTimer > 0) {
     car.invulnerableTimer = Math.max(0, car.invulnerableTimer - dtSec);
   }
@@ -2382,6 +2404,39 @@ function gameLoop(nowMs) {
     }
   }
 
+  // Diffusion des coordonnées en temps réel vers tous les écrans miroirs connectés
+  if (!isMirrorMode && roomCode && socket && socket.connected && (nowMs - lastFrameBroadcastTime >= 33)) {
+    lastFrameBroadcastTime = nowMs;
+    socket.emit('host:broadcast_frame', {
+      roomCode,
+      frame: {
+        status: roomStatus,
+        cars: activeCars.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          x: Math.round(c.x * 10) / 10,
+          y: Math.round(c.y * 10) / 10,
+          angle: Math.round(c.angle * 100) / 100,
+          driftAngle: Math.round(c.driftAngle * 100) / 100,
+          spinoutAngle: Math.round(c.spinoutAngle * 100) / 100,
+          speed: Math.round(c.speed * 10) / 10,
+          isDrifting: c.isDrifting,
+          driftLevel: c.driftLevel,
+          isFalling: c.isFalling,
+          fallScale: Math.round(c.fallScale * 100) / 100,
+          invulnerable: c.invulnerableTimer > 0,
+          lap: c.lap,
+          position: c.position,
+          item: c.item,
+          finished: c.finished
+        })),
+        oilSlicks: oilSlicks.map((s) => ({ x: Math.round(s.x), y: Math.round(s.y), radius: s.radius })),
+        mysteryBoxes: mysteryBoxes.map((b) => ({ id: b.id, active: b.respawnTimer <= 0 }))
+      }
+    });
+  }
+
   renderScene(nowMs, dtNorm);
 }
 
@@ -2473,9 +2528,16 @@ function handleRoomStateSync(statePayload) {
   }
 }
 
+const urlParams = new URLSearchParams(window.location.search);
+const queryRoom = (urlParams.get('room') || urlParams.get('spectate') || '').trim().toUpperCase();
+const isPathMirror = window.location.pathname.startsWith('/tv') || window.location.pathname.startsWith('/spectate') || urlParams.get('mode') === 'mirror';
+
 socket.on('connect', () => {
-  const savedRoomCode = sessionStorage.getItem('hostRoomCode') || roomCode || '';
-  socket.emit('host:create_room', { existingRoomCode: savedRoomCode });
+  const savedRoomCode = queryRoom || sessionStorage.getItem('hostRoomCode') || roomCode || '';
+  socket.emit('host:create_room', {
+    existingRoomCode: savedRoomCode,
+    isMirror: Boolean(isPathMirror || (queryRoom && queryRoom !== sessionStorage.getItem('hostRoomCode')))
+  });
 });
 
 socket.on('room:created', (payload) => {
@@ -2484,7 +2546,85 @@ socket.on('room:created', (payload) => {
     sessionStorage.setItem('hostRoomCode', roomCode);
     updateRoomLinksAndQr(roomCode);
   }
+  if (payload?.isMirror) {
+    isMirrorMode = true;
+    if (screenMirrorBadge) screenMirrorBadge.classList.remove('hidden');
+    if (btnStartRace) {
+      btnStartRace.disabled = true;
+      btnStartRace.innerHTML = '<span class="start-icon">📺</span><span class="start-text">EN DIRECT (HÔTE PRINCIPAL)</span>';
+    }
+    if (btnDuplicateScreen) btnDuplicateScreen.classList.add('hidden');
+    if (lobbyStatusMsg) lobbyStatusMsg.textContent = "📺 Écran dupliqué connecté. En attente du départ depuis l'écran principal...";
+  }
   handleRoomStateSync(payload);
+});
+
+socket.on('host:screens_count', ({ screenCount }) => {
+  if (screenCountPill && screenCountText) {
+    screenCountText.textContent = `${screenCount} écran${screenCount > 1 ? 's' : ''}`;
+    screenCountPill.classList.remove('hidden');
+  }
+});
+
+socket.on('host:promoted_to_primary', () => {
+  isMirrorMode = false;
+  if (screenMirrorBadge) screenMirrorBadge.classList.add('hidden');
+  if (btnDuplicateScreen) btnDuplicateScreen.classList.remove('hidden');
+  pushKillfeed("👑 Cet écran est devenu l'Hôte Principal !", '#00f5d4');
+  if (btnStartRace) {
+    btnStartRace.disabled = playersList.length === 0;
+    btnStartRace.innerHTML = '<span class="start-icon">🏁</span><span class="start-text">LANCER LA COURSE</span>';
+  }
+});
+
+socket.on('screen:frame', (frame) => {
+  if (!isMirrorMode || !frame) return;
+
+  if (frame.status && frame.status !== roomStatus) {
+    if (frame.status === 'racing' && roomStatus === 'lobby') {
+      startCountdownAndRace();
+    } else if (frame.status === 'lobby' && roomStatus !== 'lobby') {
+      triggerReturnToLobby();
+    }
+    roomStatus = frame.status;
+  }
+
+  if (Array.isArray(frame.cars)) {
+    frame.cars.forEach((fc) => {
+      let car = carsMap.get(fc.id);
+      if (!car) {
+        car = createCarEntity(fc, 0);
+        carsMap.set(fc.id, car);
+      }
+      car.targetX = fc.x;
+      car.targetY = fc.y;
+      car.targetAngle = fc.angle;
+      car.driftAngle = fc.driftAngle;
+      car.spinoutAngle = fc.spinoutAngle;
+      car.speed = fc.speed;
+      car.isDrifting = fc.isDrifting;
+      car.driftLevel = fc.driftLevel;
+      car.isFalling = fc.isFalling;
+      car.fallScale = fc.fallScale;
+      car.invulnerableTimer = fc.invulnerable ? 1.0 : 0;
+      car.lap = fc.lap;
+      car.position = fc.position;
+      car.item = fc.item;
+      car.finished = fc.finished;
+    });
+  }
+
+  if (Array.isArray(frame.mysteryBoxes)) {
+    frame.mysteryBoxes.forEach((mb) => {
+      const box = mysteryBoxes.find((b) => b.id === mb.id);
+      if (box) box.respawnTimer = mb.active ? 0 : 5.0;
+    });
+  }
+
+  if (Array.isArray(frame.oilSlicks)) {
+    oilSlicks.length = 0;
+    frame.oilSlicks.forEach((os) => oilSlicks.push(os));
+  }
 });
 
 socket.on('room:state', (payload) => {
@@ -2599,6 +2739,28 @@ btnCopyUrl.addEventListener('click', async () => {
     }, 2000);
   } catch (_) {}
 });
+
+function copyTvMirrorUrl() {
+  const tvUrl = `${window.location.origin}/tv?room=${roomCode}`;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(tvUrl).then(() => {
+      pushKillfeed('📺 Lien 2e Écran copié ! Ouvrez-le sur une autre TV, un PC ou une tablette.', '#00f5d4');
+      if (btnCopyTvUrl) {
+        btnCopyTvUrl.textContent = '✅ Lien TV copié !';
+        setTimeout(() => {
+          btnCopyTvUrl.textContent = '📋 Copier le lien 2e Écran (TV/PC)';
+        }, 2000);
+      }
+    }).catch(() => {
+      prompt('Copiez ce lien pour afficher la course sur un 2e écran (TV/PC/tablette) :', tvUrl);
+    });
+  } else {
+    prompt('Copiez ce lien pour afficher la course sur un 2e écran (TV/PC/tablette) :', tvUrl);
+  }
+}
+
+if (btnDuplicateScreen) btnDuplicateScreen.addEventListener('click', copyTvMirrorUrl);
+if (btnCopyTvUrl) btnCopyTvUrl.addEventListener('click', copyTvMirrorUrl);
 
 btnMute.addEventListener('click', () => {
   const isMuted = soundEngine.toggleMute();
