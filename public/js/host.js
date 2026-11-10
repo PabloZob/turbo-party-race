@@ -21,36 +21,34 @@ const ITEM_META = {
   shockwave: { icon: '⚡', label: 'Onde' }
 };
 
-// Closed circuit control points (26 points around 1920x1080 with scenic layout)
+// Closed circuit control points (18 points around 1920x1080 with natural Grand Prix layout)
 // Start/Finish straight is at bottom-center heading RIGHT (clockwise loop)
 const TRACK_CONTROL_POINTS = [
-  { x: 760, y: 905 },
-  { x: 960, y: 905 },  // Start/Finish line near here
-  { x: 1180, y: 905 },
-  { x: 1420, y: 895 },
-  { x: 1630, y: 830 },
-  { x: 1735, y: 690 },
-  { x: 1715, y: 515 },
-  { x: 1565, y: 425 },
-  { x: 1370, y: 450 },
-  { x: 1245, y: 365 },
-  { x: 1320, y: 225 },
-  { x: 1475, y: 155 },
-  { x: 1360, y: 115 },
-  { x: 1100, y: 130 },
-  { x: 865, y: 210 },
-  { x: 690, y: 150 },
-  { x: 455, y: 140 },
-  { x: 255, y: 215 },
-  { x: 175, y: 375 },
-  { x: 230, y: 535 },
-  { x: 420, y: 590 },
-  { x: 545, y: 675 },
-  { x: 405, y: 785 },
-  { x: 245, y: 855 },
-  { x: 350, y: 925 },
-  { x: 555, y: 912 }
+  { x: 960, y: 920 },   // Ligne de départ / arrivée (centre bas)
+  { x: 1280, y: 920 },  // Ligne droite des stands
+  { x: 1520, y: 900 },
+  { x: 1710, y: 800 },  // Grande Parabolique Est (virage ample et fluide)
+  { x: 1765, y: 620 },
+  { x: 1680, y: 440 },
+  { x: 1480, y: 340 },  // Entrée vers l'Infield
+  { x: 1240, y: 380 },  // Le Pont Suspendu de l'Abîme (Zone de vide 1)
+  { x: 980, y: 360 },
+  { x: 780, y: 280 },   // Sortie du pont vers la montée nord
+  { x: 540, y: 200 },   // Courbe du Belvédère
+  { x: 340, y: 240 },
+  { x: 200, y: 380 },   // Descente vers la Corniche Ouest (Zone de vide 2)
+  { x: 170, y: 560 },   // Corniche du Gouffre
+  { x: 200, y: 740 },
+  { x: 320, y: 860 },   // Courbe de raccordement
+  { x: 460, y: 915 },
+  { x: 680, y: 920 }    // Retour sur la ligne droite des stands
 ];
+
+// Zones de Vide : portions sans barrières où une sortie de piste entraîne une chute et un respawn au départ
+const VOID_ZONE_BRIDGE_START = 135;
+const VOID_ZONE_BRIDGE_END = 170;
+const VOID_ZONE_CLIFF_START = 228;
+const VOID_ZONE_CLIFF_END = 252;
 
 // ============================================================================
 // DOM ELEMENTS
@@ -257,10 +255,10 @@ function generateDecorations() {
   spectators.length = 0;
   tireBarriers.length = 0;
 
-  // Spectators in two grandstands (bottom main straight & top-left hairpin)
+  // Spectators in two grandstands (bottom main straight & north hill)
   const standConfigs = [
-    { startX: 780, startY: 1018, cols: 26, rows: 3, dx: 18, dy: 14, angle: 0 },
-    { startX: 250, startY: 66, cols: 18, rows: 2, dx: 18, dy: 14, angle: 0 }
+    { startX: 720, startY: 1010, cols: 28, rows: 3, dx: 18, dy: 14, angle: 0 },
+    { startX: 380, startY: 96, cols: 20, rows: 2, dx: 18, dy: 14, angle: 0 }
   ];
   const palette = ['#ff006e', '#00f5d4', '#ffbe0b', '#3a86ff', '#fb5607', '#ffffff', '#a855f7'];
 
@@ -277,31 +275,13 @@ function generateDecorations() {
     }
   });
 
-  // Tire barriers on tight outer corners
-  for (let i = 0; i < trackWaypoints.length; i += 4) {
-    const wp = trackWaypoints[i];
-    if (Math.abs(wp.curvature) > 0.36) {
-      const sign = wp.curvature > 0 ? -1 : 1;
-      const bx = wp.x + wp.nx * sign * (TRACK_HALF_WIDTH + 18);
-      const by = wp.y + wp.ny * sign * (TRACK_HALF_WIDTH + 18);
-      if (bx > 30 && bx < CANVAS_W - 30 && by > 30 && by < CANVAS_H - 30) {
-        tireBarriers.push({
-          x: bx,
-          y: by,
-          color: (i / 4) % 2 === 0 ? '#ef4444' : '#f8fafc'
-        });
-      }
-    }
-  }
-
-  // Stylized top-down trees placed safely away from the asphalt & lake
+  // Stylized top-down trees placed safely away from the asphalt & void
   const candidateTrees = [
-    { x: 95, y: 120, r: 30 }, { x: 135, y: 165, r: 24 }, { x: 80, y: 690, r: 32 },
-    { x: 120, y: 745, r: 25 }, { x: 1815, y: 160, r: 32 }, { x: 1840, y: 230, r: 26 },
-    { x: 1845, y: 890, r: 34 }, { x: 1785, y: 945, r: 26 }, { x: 1580, y: 270, r: 26 },
-    { x: 1030, y: 310, r: 28 }, { x: 980, y: 350, r: 22 }, { x: 560, y: 365, r: 30 },
-    { x: 615, y: 400, r: 24 }, { x: 1120, y: 685, r: 28 }, { x: 1175, y: 715, r: 22 },
-    { x: 1530, y: 635, r: 28 }, { x: 750, y: 720, r: 26 }, { x: 695, y: 740, r: 21 }
+    { x: 1420, y: 720, r: 28 }, { x: 1480, y: 660, r: 24 }, { x: 1350, y: 640, r: 26 },
+    { x: 620, y: 620, r: 32 }, { x: 680, y: 660, r: 25 }, { x: 540, y: 580, r: 28 },
+    { x: 860, y: 150, r: 30 }, { x: 920, y: 120, r: 24 }, { x: 1680, y: 200, r: 32 },
+    { x: 1740, y: 260, r: 26 }, { x: 1820, y: 920, r: 34 }, { x: 100, y: 920, r: 30 },
+    { x: 120, y: 150, r: 26 }, { x: 180, y: 180, r: 24 }, { x: 1120, y: 710, r: 26 }
   ];
 
   candidateTrees.forEach((t) => {
@@ -335,19 +315,37 @@ function renderStaticTrack() {
     c.fill();
   }
 
-  // 2. Scenic Infield Lake (around x: 830, y: 540)
+  // 2. Void Zone 1: Abyss Canyon underneath the suspended bridge (waypoints 135 to 170)
   c.save();
   c.beginPath();
-  c.ellipse(835, 555, 175, 95, -0.12, 0, Math.PI * 2);
-  c.fillStyle = '#eab30833'; // Sandy shore halo
-  c.lineWidth = 18;
-  c.strokeStyle = 'rgba(217, 179, 108, 0.38)';
-  c.stroke();
-  const lakeGrad = c.createRadialGradient(815, 540, 20, 835, 555, 180);
-  lakeGrad.addColorStop(0, '#0ea5e9');
-  lakeGrad.addColorStop(0.7, '#0284c7');
-  lakeGrad.addColorStop(1, '#0369a1');
-  c.fillStyle = lakeGrad;
+  c.ellipse(1010, 350, 250, 145, -0.08, 0, Math.PI * 2);
+  const abyssGrad = c.createRadialGradient(1010, 350, 25, 1010, 350, 250);
+  abyssGrad.addColorStop(0, '#020617');
+  abyssGrad.addColorStop(0.55, '#090d16');
+  abyssGrad.addColorStop(0.85, '#0369a1');
+  abyssGrad.addColorStop(1, 'rgba(15, 41, 30, 0)');
+  c.fillStyle = abyssGrad;
+  c.fill();
+  // Cyber grid lines inside the abyss depth
+  c.strokeStyle = 'rgba(0, 245, 212, 0.16)';
+  c.lineWidth = 1.5;
+  for (let gy = 230; gy <= 470; gy += 32) {
+    c.beginPath();
+    c.moveTo(780, gy);
+    c.lineTo(1240, gy);
+    c.stroke();
+  }
+  c.restore();
+
+  // Void Zone 2: Western Cliffside Abyss (waypoints 228 to 252)
+  c.save();
+  c.beginPath();
+  c.ellipse(100, 560, 140, 210, 0.05, 0, Math.PI * 2);
+  const cliffGrad = c.createRadialGradient(70, 560, 20, 100, 560, 160);
+  cliffGrad.addColorStop(0, '#020617');
+  cliffGrad.addColorStop(0.7, '#0f172a');
+  cliffGrad.addColorStop(1, 'rgba(15, 41, 30, 0)');
+  c.fillStyle = cliffGrad;
   c.fill();
   c.restore();
 
@@ -364,14 +362,16 @@ function renderStaticTrack() {
   c.lineJoin = 'round';
   c.lineCap = 'round';
 
-  // 3. Outer dark shadow & grass verge
+  // 3. Outer dark shadow & asphalt foundation
   traceCenterPath();
   c.strokeStyle = 'rgba(0, 0, 0, 0.55)';
   c.lineWidth = TRACK_HALF_WIDTH * 2 + 34;
   c.stroke();
 
-  // 4. Red & White Curbs (Vibreurs) along the track edges
+  // 4. Red & White Curbs (Vibreurs) along track edges (EXCEPT in Void Zones)
   for (let i = 0; i < trackWaypoints.length; i++) {
+    const inBridge = i >= VOID_ZONE_BRIDGE_START && i <= VOID_ZONE_BRIDGE_END;
+    if (inBridge) continue; // Pas de vibreur sur le pont du vide !
     const wp1 = trackWaypoints[i];
     const wp2 = trackWaypoints[(i + 1) % trackWaypoints.length];
     c.beginPath();
@@ -394,13 +394,66 @@ function renderStaticTrack() {
   c.lineWidth = TRACK_HALF_WIDTH * 1.45;
   c.stroke();
 
-  // Neon cyan inner/outer subtle edge glow lines for Arcade TV vibe
-  traceCenterPath();
-  c.strokeStyle = 'rgba(0, 245, 212, 0.12)';
-  c.lineWidth = TRACK_HALF_WIDTH * 2 - 4;
-  c.stroke();
+  // 6. Suspended Bridge & Hazard Edge Styling in Void Zone 1
+  for (let i = VOID_ZONE_BRIDGE_START; i <= VOID_ZONE_BRIDGE_END; i++) {
+    const wp1 = trackWaypoints[i];
+    const wp2 = trackWaypoints[(i + 1) % trackWaypoints.length];
 
-  // 6. Dashed Center Line
+    // High-tech bridge deck
+    c.beginPath();
+    c.moveTo(wp1.x, wp1.y);
+    c.lineTo(wp2.x, wp2.y);
+    c.strokeStyle = '#1e293b';
+    c.lineWidth = TRACK_HALF_WIDTH * 2;
+    c.stroke();
+
+    // Yellow / dark danger edge strips on bridge margins
+    const sideColor = (i % 2 === 0) ? '#f59e0b' : '#090d16';
+    // Inner edge
+    c.beginPath();
+    c.moveTo(wp1.x - wp1.nx * (TRACK_HALF_WIDTH - 4), wp1.y - wp1.ny * (TRACK_HALF_WIDTH - 4));
+    c.lineTo(wp2.x - wp2.nx * (TRACK_HALF_WIDTH - 4), wp2.y - wp2.ny * (TRACK_HALF_WIDTH - 4));
+    c.strokeStyle = sideColor;
+    c.lineWidth = 8;
+    c.stroke();
+    // Outer edge
+    c.beginPath();
+    c.moveTo(wp1.x + wp1.nx * (TRACK_HALF_WIDTH - 4), wp1.y + wp1.ny * (TRACK_HALF_WIDTH - 4));
+    c.lineTo(wp2.x + wp2.nx * (TRACK_HALF_WIDTH - 4), wp2.y + wp2.ny * (TRACK_HALF_WIDTH - 4));
+    c.strokeStyle = sideColor;
+    c.lineWidth = 8;
+    c.stroke();
+
+    // Glowing cyan neon edge indicator
+    c.strokeStyle = '#00f5d4';
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(wp1.x - wp1.nx * TRACK_HALF_WIDTH, wp1.y - wp1.ny * TRACK_HALF_WIDTH);
+    c.lineTo(wp2.x - wp2.nx * TRACK_HALF_WIDTH, wp2.y - wp2.ny * TRACK_HALF_WIDTH);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(wp1.x + wp1.nx * TRACK_HALF_WIDTH, wp1.y + wp1.ny * TRACK_HALF_WIDTH);
+    c.lineTo(wp2.x + wp2.nx * TRACK_HALF_WIDTH, wp2.y + wp2.ny * TRACK_HALF_WIDTH);
+    c.stroke();
+  }
+
+  // 7. Cliff Hazard Warning Chevrons in Void Zone 2
+  for (let i = VOID_ZONE_CLIFF_START; i <= VOID_ZONE_CLIFF_END; i += 3) {
+    const wp = trackWaypoints[i];
+    c.save();
+    c.translate(wp.x + wp.nx * (TRACK_HALF_WIDTH - 14), wp.y + wp.ny * (TRACK_HALF_WIDTH - 14));
+    c.rotate(Math.atan2(wp.ty, wp.tx));
+    c.strokeStyle = '#f59e0b';
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(8, -8);
+    c.lineTo(0, 0);
+    c.lineTo(8, 8);
+    c.stroke();
+    c.restore();
+  }
+
+  // 8. Dashed Center Line
   c.save();
   traceCenterPath();
   c.strokeStyle = 'rgba(255, 255, 255, 0.22)';
@@ -409,7 +462,141 @@ function renderStaticTrack() {
   c.stroke();
   c.restore();
 
-  // 7. Starting Grid Boxes (8 staggered slots behind waypoint 0)
+  // 9. SOLID GUARDRAILS / WALLS (Anti-Cut Barriers preventing cutting across the grass)
+  const wallDistance = TRACK_HALF_WIDTH + 6;
+
+  // A. Inner Wall (everywhere except bridge void 135..170)
+  c.save();
+  for (let i = 0; i < trackWaypoints.length; i++) {
+    const isVoidInner = i >= VOID_ZONE_BRIDGE_START && i <= VOID_ZONE_BRIDGE_END;
+    const nextIdx = (i + 1) % trackWaypoints.length;
+    const isNextVoidInner = nextIdx >= VOID_ZONE_BRIDGE_START && nextIdx <= VOID_ZONE_BRIDGE_END;
+    if (isVoidInner || isNextVoidInner) continue;
+
+    const w1 = trackWaypoints[i];
+    const w2 = trackWaypoints[nextIdx];
+    const p1x = w1.x - w1.nx * wallDistance;
+    const p1y = w1.y - w1.ny * wallDistance;
+    const p2x = w2.x - w2.nx * wallDistance;
+    const p2y = w2.y - w2.ny * wallDistance;
+
+    // Wall shadow
+    c.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+    c.lineWidth = 10;
+    c.beginPath();
+    c.moveTo(p1x + 2, p1y + 2);
+    c.lineTo(p2x + 2, p2y + 2);
+    c.stroke();
+
+    // Structural barrier
+    c.strokeStyle = '#334155';
+    c.lineWidth = 7;
+    c.beginPath();
+    c.moveTo(p1x, p1y);
+    c.lineTo(p2x, p2y);
+    c.stroke();
+
+    // Metallic guardrail
+    c.strokeStyle = '#94a3b8';
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(p1x, p1y);
+    c.lineTo(p2x, p2y);
+    c.stroke();
+
+    // Reflectors
+    if (i % 6 === 0) {
+      c.fillStyle = '#00f5d4';
+      c.beginPath();
+      c.arc(p1x, p1y, 3, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+
+  // B. Outer Wall (everywhere except bridge void 135..170 and cliff void 228..252)
+  for (let i = 0; i < trackWaypoints.length; i++) {
+    const isVoidOuter = (i >= VOID_ZONE_BRIDGE_START && i <= VOID_ZONE_BRIDGE_END) ||
+                        (i >= VOID_ZONE_CLIFF_START && i <= VOID_ZONE_CLIFF_END);
+    const nextIdx = (i + 1) % trackWaypoints.length;
+    const isNextVoidOuter = (nextIdx >= VOID_ZONE_BRIDGE_START && nextIdx <= VOID_ZONE_BRIDGE_END) ||
+                            (nextIdx >= VOID_ZONE_CLIFF_START && nextIdx <= VOID_ZONE_CLIFF_END);
+    if (isVoidOuter || isNextVoidOuter) continue;
+
+    const w1 = trackWaypoints[i];
+    const w2 = trackWaypoints[nextIdx];
+    const p1x = w1.x + w1.nx * wallDistance;
+    const p1y = w1.y + w1.ny * wallDistance;
+    const p2x = w2.x + w2.nx * wallDistance;
+    const p2y = w2.y + w2.ny * wallDistance;
+
+    // Wall shadow
+    c.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+    c.lineWidth = 10;
+    c.beginPath();
+    c.moveTo(p1x + 2, p1y + 2);
+    c.lineTo(p2x + 2, p2y + 2);
+    c.stroke();
+
+    // Structural barrier
+    c.strokeStyle = '#334155';
+    c.lineWidth = 7;
+    c.beginPath();
+    c.moveTo(p1x, p1y);
+    c.lineTo(p2x, p2y);
+    c.stroke();
+
+    // Metallic guardrail
+    c.strokeStyle = '#94a3b8';
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(p1x, p1y);
+    c.lineTo(p2x, p2y);
+    c.stroke();
+
+    // Reflectors
+    if (i % 6 === 0) {
+      c.fillStyle = '#ffbe0b';
+      c.beginPath();
+      c.arc(p1x, p1y, 3, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+  c.restore();
+
+  // Terminal Warning Pylons at the entrance and exit of void zones
+  const voidPylons = [
+    { wpIdx: VOID_ZONE_BRIDGE_START, inner: true, outer: true },
+    { wpIdx: VOID_ZONE_BRIDGE_END, inner: true, outer: true },
+    { wpIdx: VOID_ZONE_CLIFF_START, inner: false, outer: true },
+    { wpIdx: VOID_ZONE_CLIFF_END, inner: false, outer: true }
+  ];
+  voidPylons.forEach((vp) => {
+    const wp = trackWaypoints[vp.wpIdx];
+    if (vp.inner) {
+      const px = wp.x - wp.nx * wallDistance;
+      const py = wp.y - wp.ny * wallDistance;
+      c.fillStyle = '#f59e0b';
+      c.beginPath();
+      c.arc(px, py, 6, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = '#090d16';
+      c.lineWidth = 2;
+      c.stroke();
+    }
+    if (vp.outer) {
+      const px = wp.x + wp.nx * wallDistance;
+      const py = wp.y + wp.ny * wallDistance;
+      c.fillStyle = '#f59e0b';
+      c.beginPath();
+      c.arc(px, py, 6, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = '#090d16';
+      c.lineWidth = 2;
+      c.stroke();
+    }
+  });
+
+  // 10. Starting Grid Boxes (8 staggered slots behind waypoint 0)
   const totalWp = trackWaypoints.length;
   for (let slot = 0; slot < 8; slot++) {
     const wpIndex = (totalWp - 6 - slot * 3 + totalWp) % totalWp;
@@ -433,7 +620,7 @@ function renderStaticTrack() {
     c.restore();
   }
 
-  // 8. Checkered Start / Finish Line at Waypoint 0
+  // 11. Checkered Start / Finish Line at Waypoint 0
   const startWp = trackWaypoints[0];
   const startAngle = Math.atan2(startWp.ty, startWp.tx);
   c.save();
@@ -455,49 +642,33 @@ function renderStaticTrack() {
   c.fillRect(-6, TRACK_HALF_WIDTH, 12, 14);
   c.restore();
 
-  // 9. Grandstand Roofs / Structures
+  // 12. Grandstand Roofs / Structures
   c.save();
   c.fillStyle = '#0f172a';
   c.strokeStyle = '#334155';
   c.lineWidth = 3;
   c.beginPath();
-  c.roundRect(760, 998, 495, 62, 10);
+  c.roundRect(700, 992, 530, 62, 10);
   c.fill();
   c.stroke();
 
   c.beginPath();
-  c.roundRect(230, 48, 350, 46, 10);
+  c.roundRect(360, 80, 390, 46, 10);
   c.fill();
   c.stroke();
   c.restore();
 
-  // 10. Tire barriers at tight curves
-  tireBarriers.forEach((tb) => {
-    c.save();
-    c.beginPath();
-    c.arc(tb.x, tb.y, 8, 0, Math.PI * 2);
-    c.fillStyle = tb.color;
-    c.fill();
-    c.lineWidth = 2;
-    c.strokeStyle = '#0f172a';
-    c.stroke();
-    c.restore();
-  });
-
-  // 11. Top-down stylized trees
+  // 13. Top-down stylized trees
   trees.forEach((t) => {
     c.save();
-    // Drop shadow
     c.beginPath();
     c.arc(t.x + 8, t.y + 8, t.r, 0, Math.PI * 2);
     c.fillStyle = 'rgba(0, 0, 0, 0.38)';
     c.fill();
-    // Outer foliage
     c.beginPath();
     c.arc(t.x, t.y, t.r, 0, Math.PI * 2);
     c.fillStyle = '#15803d';
     c.fill();
-    // Inner highlight
     c.beginPath();
     c.arc(t.x - t.r * 0.22, t.y - t.r * 0.22, t.r * 0.65, 0, Math.PI * 2);
     c.fillStyle = '#22c55e';
@@ -634,9 +805,65 @@ function createCarEntity(playerInfo, gridSlotIndex = 0) {
     botLaneOffset: (Math.random() - 0.5) * 44,
     honkVisualTimer: 0,
 
+    // Void & Wall physics
+    isFalling: false,
+    fallTimer: 0,
+    fallScale: 1.0,
+    invulnerableTimer: 0,
+    wallHitCooldown: 0,
+
     // Controller input
     input: { left: false, right: false, accel: false, drift: false }
   };
+}
+
+/**
+ * Triggers a fall into the void when driving off an unbarricaded abyss edge
+ */
+function triggerCarFall(car) {
+  if (car.isFalling) return;
+  car.isFalling = true;
+  car.fallTimer = 0.85;
+  car.fallScale = 1.0;
+  car.item = null;
+  car.isDrifting = false;
+  soundEngine.playFall();
+  pushKillfeed(`💀 ${car.name} a plongé dans le vide !`, '#f43f5e');
+  emitHaptic(car.id, 'fall', [80, 50, 90]);
+}
+
+/**
+ * Respawns a car back on the starting line facing forward after falling into the void
+ */
+function respawnCarAtStartLine(car) {
+  const totalWp = trackWaypoints.length;
+  const slot = Math.max(0, Math.min(7, car.slotIndex || 0));
+  const wpIndex = (totalWp - 6 - slot * 3 + totalWp) % totalWp;
+  const wp = trackWaypoints[wpIndex];
+  const lateralOffset = (slot % 2 === 0 ? -1 : 1) * 32;
+
+  car.x = wp.x + wp.nx * lateralOffset;
+  car.y = wp.y + wp.ny * lateralOffset;
+  car.prevX = car.x;
+  car.prevY = car.y;
+  car.vx = 0;
+  car.vy = 0;
+  car.speed = 0;
+  car.angle = Math.atan2(wp.ty, wp.tx);
+  car.driftAngle = 0;
+  car.isDrifting = false;
+  car.driftCharge = 0;
+  car.driftLevel = 0;
+  car.spinoutTimer = 0;
+  car.spinoutAngle = 0;
+  car.isFalling = false;
+  car.fallTimer = 0;
+  car.fallScale = 1.0;
+  car.invulnerableTimer = 2.0; // 2 seconds of blinking invulnerability
+  car.checkpointMask = 0;      // Must redo the checkpoints from the start line
+  car.currentWpIndex = wpIndex;
+
+  pushKillfeed(`🚨 ${car.name} repart de la ligne de départ !`, car.color);
 }
 
 /**
@@ -1081,8 +1308,13 @@ function updateBotAI(car, dtSec) {
   const targetWp = trackWaypoints[lookAheadIdx];
   const farWp = trackWaypoints[farAheadIdx];
 
-  let aimX = targetWp.x + targetWp.nx * car.botLaneOffset;
-  let aimY = targetWp.y + targetWp.ny * car.botLaneOffset;
+  // In void zones (bridge and cliff), ensure bot stays safely centered on track
+  const inVoidZone = (car.currentWpIndex >= VOID_ZONE_BRIDGE_START - 6 && car.currentWpIndex <= VOID_ZONE_BRIDGE_END + 6) ||
+                     (car.currentWpIndex >= VOID_ZONE_CLIFF_START - 6 && car.currentWpIndex <= VOID_ZONE_CLIFF_END + 6);
+  const laneOffset = inVoidZone ? car.botLaneOffset * 0.2 : car.botLaneOffset;
+
+  let aimX = targetWp.x + targetWp.nx * laneOffset;
+  let aimY = targetWp.y + targetWp.ny * laneOffset;
 
   // Dodge nearby oil slicks
   for (const slick of oilSlicks) {
@@ -1131,6 +1363,29 @@ function updateSingleCarPhysics(car, dtNorm, dtSec, isInteractiveRace) {
 
   if (car.honkVisualTimer > 0) {
     car.honkVisualTimer = Math.max(0, car.honkVisualTimer - dtSec);
+  }
+  if (car.invulnerableTimer > 0) {
+    car.invulnerableTimer = Math.max(0, car.invulnerableTimer - dtSec);
+  }
+  if (car.wallHitCooldown > 0) {
+    car.wallHitCooldown = Math.max(0, car.wallHitCooldown - dtSec);
+  }
+
+  // 1. Chute dans le vide (animation de plongeon avec rétrécissement et rotation)
+  if (car.isFalling) {
+    car.fallTimer = Math.max(0, car.fallTimer - dtSec);
+    car.fallScale = Math.max(0.04, car.fallTimer / 0.85);
+    car.spinoutAngle += 0.42 * dtNorm;
+    car.speed *= Math.pow(0.88, dtNorm);
+    car.vx *= Math.pow(0.88, dtNorm);
+    car.vy *= Math.pow(0.88, dtNorm);
+    car.x += car.vx * dtNorm;
+    car.y += car.vy * dtNorm;
+
+    if (car.fallTimer <= 0) {
+      respawnCarAtStartLine(car);
+    }
+    return;
   }
 
   // Check distance to track for off-road grass penalty and waypoint progression
@@ -1253,34 +1508,97 @@ function updateSingleCarPhysics(car, dtNorm, dtSec, isInteractiveRace) {
     car.driftLevel = 0;
     car.driftAngle *= Math.pow(0.8, dtNorm);
 
-    // Normal steering
+    // Normal steering (Proposition A: Grip x2 + Braquage adaptatif selon la vitesse)
     if (Math.abs(car.speed) > 0.15) {
       const dirSign = car.speed >= 0 ? 1 : -1;
-      const turnRate = 0.056 * steerInput * dirSign * Math.min(1, Math.abs(car.speed) / 3.2);
+      const speedMag = Math.abs(car.speed);
+      let baseTurnRate = 0.046;
+      if (speedMag > 6.2) {
+        baseTurnRate = 0.036; // Stable et précis à haute vitesse en ligne droite
+      } else if (speedMag < 3.2) {
+        baseTurnRate = 0.062; // Très agile à basse vitesse pour manœuvrer
+      }
+      const turnRate = baseTurnRate * steerInput * dirSign;
       car.angle += turnRate * dtNorm;
+    }
+
+    // Auto-alignement d'assistance : réaligne doucement la voiture avec la piste en ligne droite
+    if (steerInput === 0 && Math.abs(car.speed) > 1.8 && !car.isFalling && car.spinoutTimer <= 0) {
+      const wp = trackInfo.waypoint;
+      const trackHeading = Math.atan2(wp.ty, wp.tx);
+      let headingDiff = trackHeading - car.angle;
+      while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+      while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+      if (Math.abs(headingDiff) < 0.72) {
+        car.angle += headingDiff * 0.032 * dtNorm;
+      }
     }
   }
 
-  // Lateral inertia blending (velocity vector blends toward facing angle)
+  // Lateral inertia blending (Proposition A: Grip x2 = 0.68 sur asphalte, fini l'effet savonnette !)
   const forwardVx = Math.cos(car.angle) * car.speed;
   const forwardVy = Math.sin(car.angle) * car.speed;
-  const grip = car.isDrifting ? 0.14 : isOnGrass ? 0.18 : 0.28;
+  const grip = car.isDrifting ? 0.22 : 0.68;
   car.vx += (forwardVx - car.vx) * grip * dtNorm;
   car.vy += (forwardVy - car.vy) * grip * dtNorm;
 
   car.x += car.vx * dtNorm;
   car.y += car.vy * dtNorm;
 
-  // Keep inside canvas bounds with bounce
-  const margin = 28;
-  if (car.x < margin) { car.x = margin; car.vx = Math.abs(car.vx) * 0.6; }
-  if (car.x > CANVAS_W - margin) { car.x = CANVAS_W - margin; car.vx = -Math.abs(car.vx) * 0.6; }
-  if (car.y < margin) { car.y = margin; car.vy = Math.abs(car.vy) * 0.6; }
-  if (car.y > CANVAS_H - margin) { car.y = CANVAS_H - margin; car.vy = -Math.abs(car.vy) * 0.6; }
+  // Collision avec les Murs & Détection de chute dans le Vide
+  const wp = trackInfo.waypoint;
+  const dx = car.x - wp.x;
+  const dy = car.y - wp.y;
+  const lateral = dx * wp.nx + dy * wp.ny;
+  const absLat = Math.abs(lateral);
+  const wpIdx = trackInfo.index;
 
-  // Emit grass/dirt particles when off-road without Nitro
-  if (isOnGrass && car.nitroTimer <= 0 && Math.abs(car.speed) > 2.2 && Math.random() < 0.55) {
-    spawnWheelParticles(car, Math.random() < 0.5 ? '#15803d' : '#78350f', 3.5);
+  const isBridgeVoid = wpIdx >= VOID_ZONE_BRIDGE_START && wpIdx <= VOID_ZONE_BRIDGE_END;
+  const isCliffVoid = wpIdx >= VOID_ZONE_CLIFF_START && wpIdx <= VOID_ZONE_CLIFF_END && lateral > 0;
+  const isVoidEdge = isBridgeVoid || isCliffVoid;
+
+  if (isVoidEdge) {
+    // Si la voiture quitte la chaussée dans une zone de vide : chute dans le vide !
+    if (absLat > TRACK_HALF_WIDTH + 8 && !car.isFalling) {
+      triggerCarFall(car);
+    }
+  } else {
+    // Murs solides infranchissables : empêche totalement de couper à travers la pelouse
+    const wallLimit = TRACK_HALF_WIDTH + 2;
+    if (absLat > wallLimit) {
+      const side = lateral > 0 ? 1 : -1;
+      const alongTangent = dx * wp.tx + dy * wp.ty;
+      car.x = wp.x + wp.tx * alongTangent + wp.nx * (side * wallLimit);
+      car.y = wp.y + wp.ty * alongTangent + wp.ny * (side * wallLimit);
+
+      const vn = car.vx * wp.nx + car.vy * wp.ny;
+      const vt = car.vx * wp.tx + car.vy * wp.ty;
+
+      // Rebond physique élastique si le bolide fonce dans le rail
+      if (vn * side > 0) {
+        const bounceVn = -vn * 0.42;
+        const frictionVt = vt * 0.74;
+        car.vx = wp.tx * frictionVt + wp.nx * bounceVn;
+        car.vy = wp.ty * frictionVt + wp.ny * bounceVn;
+        car.speed = Math.hypot(car.vx, car.vy) * Math.sign(frictionVt || 1);
+
+        // Déviation de l'angle pour glisser le long du rail
+        const trackHeading = Math.atan2(wp.ty, wp.tx);
+        let headingDiff = trackHeading - car.angle;
+        while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+        while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+        car.angle += headingDiff * 0.32;
+
+        spawnImpactSparks(car.x, car.y, '#f59e0b', 8);
+
+        if (car.wallHitCooldown <= 0 && Math.abs(vn) > 1.2) {
+          car.wallHitCooldown = 0.22;
+          soundEngine.playCollision(0.65);
+          screenShake = Math.max(screenShake, 3.5);
+          emitHaptic(car.id, 'wall_hit', [30]);
+        }
+      }
+    }
   }
 
   // Emit Nitro or Mini-Boost exhaust flames
@@ -1354,6 +1672,7 @@ function resolveCarCollisions(carsArray) {
     for (let j = i + 1; j < carsArray.length; j++) {
       const a = carsArray[i];
       const b = carsArray[j];
+      if (a.isFalling || b.isFalling || a.invulnerableTimer > 0 || b.invulnerableTimer > 0) continue;
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.hypot(dx, dy);
@@ -1415,7 +1734,7 @@ function updateTrackItemsAndHazards(carsArray, dtSec) {
     }
 
     for (const car of carsArray) {
-      if (car.finished) continue;
+      if (car.finished || car.isFalling || car.invulnerableTimer > 0) continue;
       const d = Math.hypot(car.x - box.x, car.y - box.y);
       if (d < 34) {
         box.respawnTimer = 5.0; // Respawns 5 seconds after pickup
@@ -1441,7 +1760,7 @@ function updateTrackItemsAndHazards(carsArray, dtSec) {
     }
 
     for (const car of carsArray) {
-      if (car.finished || car.spinoutTimer > 0) continue;
+      if (car.finished || car.spinoutTimer > 0 || car.isFalling || car.invulnerableTimer > 0) continue;
       if (slick.graceTimer > 0 && slick.ownerId === car.id) continue;
 
       const d = Math.hypot(car.x - slick.x, car.y - slick.y);
@@ -1834,6 +2153,18 @@ function drawCarOnTrack(car, nowMs) {
   ctx.save();
   ctx.translate(car.x, car.y);
 
+  // Animation de chute dans le vide (rétrécissement et disparition)
+  if (car.isFalling) {
+    const scale = Math.max(0.04, car.fallScale || 1.0);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = Math.max(0.08, scale);
+  } else if (car.invulnerableTimer > 0) {
+    // Clignotement d'invulnérabilité au respawn
+    if (Math.floor(nowMs / 80) % 2 === 0) {
+      ctx.globalAlpha = 0.35;
+    }
+  }
+
   // Honk soundwave ring around car
   if (car.honkVisualTimer > 0) {
     ctx.save();
@@ -1890,30 +2221,32 @@ function drawCarOnTrack(car, nowMs) {
 
   ctx.restore();
 
-  // Floating Driver Label above car
-  ctx.save();
-  ctx.translate(car.x, car.y - 26);
-  const itemPrefix = car.item && ITEM_META[car.item] ? `${ITEM_META[car.item].icon} ` : '';
-  const netSuffix = !car.isBot && !car.connected ? ' 📡' : '';
-  const labelText = `${itemPrefix}${car.name}${netSuffix}`;
+  // Floating Driver Label above car (caché pendant la chute)
+  if (!car.isFalling) {
+    ctx.save();
+    ctx.translate(car.x, car.y - 26);
+    const itemPrefix = car.item && ITEM_META[car.item] ? `${ITEM_META[car.item].icon} ` : '';
+    const netSuffix = !car.isBot && !car.connected ? ' 📡' : '';
+    const labelText = `${itemPrefix}${car.name}${netSuffix}`;
 
-  ctx.font = '700 12px "Chakra Petch", sans-serif';
-  const textW = ctx.measureText(labelText).width;
-  const pillW = textW + 14;
+    ctx.font = '700 12px "Chakra Petch", sans-serif';
+    const textW = ctx.measureText(labelText).width;
+    const pillW = textW + 14;
 
-  ctx.fillStyle = 'rgba(8, 13, 26, 0.82)';
-  ctx.strokeStyle = car.color;
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.roundRect(-pillW * 0.5, -10, pillW, 18, 9);
-  ctx.fill();
-  ctx.stroke();
+    ctx.fillStyle = 'rgba(8, 13, 26, 0.82)';
+    ctx.strokeStyle = car.color;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.roundRect(-pillW * 0.5, -10, pillW, 18, 9);
+    ctx.fill();
+    ctx.stroke();
 
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(labelText, 0, -1);
-  ctx.restore();
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, 0, -1);
+    ctx.restore();
+  }
 }
 
 // ============================================================================

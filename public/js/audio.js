@@ -361,6 +361,49 @@ export class SoundEngine {
   }
 
   /**
+   * Dramatic falling whistle descending into deep abyss / splash when falling into void
+   */
+  playFall() {
+    if (!this._canPlay()) return;
+    const now = this.ctx.currentTime;
+    const dur = 0.8;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(820, now);
+    osc.frequency.exponentialRampToValueAtTime(52, now + dur);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.24, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+    osc.connect(gain);
+    gain.connect(this.compressor);
+
+    osc.start(now);
+    osc.stop(now + dur + 0.02);
+
+    // Deep impact thud at bottom of chasm
+    setTimeout(() => {
+      if (!this._canPlay()) return;
+      const t = this.ctx.currentTime;
+      const thud = this.ctx.createOscillator();
+      const thudGain = this.ctx.createGain();
+      thud.type = 'triangle';
+      thud.frequency.setValueAtTime(95, t);
+      thud.frequency.exponentialRampToValueAtTime(28, t + 0.24);
+      thudGain.gain.setValueAtTime(0.28, t);
+      thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+      thud.connect(thudGain);
+      thudGain.connect(this.compressor);
+      thud.start(t);
+      thud.stop(t + 0.25);
+    }, 550);
+  }
+
+  /**
    * Explosive bass wave + electric resonance for Shockwave item
    */
   playShockwave() {
