@@ -21,34 +21,46 @@ const ITEM_META = {
   shockwave: { icon: '⚡', label: 'Onde' }
 };
 
-// Closed circuit control points (18 points around 1920x1080 with natural Grand Prix layout)
-// Start/Finish straight is at bottom-center heading RIGHT (clockwise loop)
+// Closed circuit control points (30 technical points with right & left turns around 1920x1080)
+// Start/Finish straight is at bottom-center heading RIGHT
 const TRACK_CONTROL_POINTS = [
-  { x: 960, y: 920 },   // Ligne de départ / arrivée (centre bas)
-  { x: 1280, y: 920 },  // Ligne droite des stands
-  { x: 1520, y: 900 },
-  { x: 1710, y: 800 },  // Grande Parabolique Est (virage ample et fluide)
-  { x: 1765, y: 620 },
-  { x: 1680, y: 440 },
-  { x: 1480, y: 340 },  // Entrée vers l'Infield
-  { x: 1240, y: 380 },  // Le Pont Suspendu de l'Abîme (Zone de vide 1)
-  { x: 980, y: 360 },
-  { x: 780, y: 280 },   // Sortie du pont vers la montée nord
-  { x: 540, y: 200 },   // Courbe du Belvédère
-  { x: 340, y: 240 },
-  { x: 200, y: 380 },   // Descente vers la Corniche Ouest (Zone de vide 2)
-  { x: 170, y: 560 },   // Corniche du Gouffre
-  { x: 200, y: 740 },
-  { x: 320, y: 860 },   // Courbe de raccordement
-  { x: 460, y: 915 },
-  { x: 680, y: 920 }    // Retour sur la ligne droite des stands
+  { x: 960, y: 930 },   // 0: Ligne de départ / arrivée (centre bas)
+  { x: 1260, y: 930 },  // 1: Ligne droite des stands
+  { x: 1520, y: 910 },  // 2: Entrée Parabolique Est
+  { x: 1750, y: 790 },  // 3: Virage 1 - Grande Parabolique Est
+  { x: 1760, y: 620 },  // 4: Montée Est
+  { x: 1580, y: 540 },  // 5: VIRAGE DROITE 1 (Chicane Infield) - Plongée vers l'infield
+  { x: 1360, y: 560 },  // 6: Virage à DROITE dans l'infield
+  { x: 1140, y: 690 },  // 7: Épingle Infield
+  { x: 900, y: 700 },   // 8: Virage à GAUCHE
+  { x: 680, y: 580 },   // 9: Sortie Infield
+  { x: 640, y: 420 },   // 10: Montée vers le Nord
+  { x: 780, y: 310 },   // 11: VIRAGE DROITE 2 - Entrée du Pont Suspendu
+  { x: 1040, y: 295 },  // 12: Le Pont Suspendu de l'Abîme (Zone de vide 1) - cap Est
+  { x: 1300, y: 295 },  // 13: Pont Suspendu suite
+  { x: 1520, y: 305 },  // 14: Sortie du pont vers l'Est
+  { x: 1740, y: 230 },  // 15: Épingle Nord-Est
+  { x: 1660, y: 95 },   // 16: Sommet Nord
+  { x: 1360, y: 80 },   // 17: Ligne droite supersonique du Nord
+  { x: 1020, y: 80 },   // 18: Suite ligne droite Nord
+  { x: 700, y: 90 },    // 19: Freinage Nord-Ouest
+  { x: 480, y: 120 },   // 20: Entrée Esse Ouest
+  { x: 340, y: 210 },   // 21: Flick gauche
+  { x: 360, y: 340 },   // 22: VIRAGE DROITE 3 (Flick Droit Esse Ouest)
+  { x: 250, y: 460 },   // 23: Entrée Corniche du Gouffre (Zone de vide 2)
+  { x: 170, y: 580 },   // 24: Corniche Ouest
+  { x: 170, y: 720 },   // 25: Sortie Corniche
+  { x: 260, y: 840 },   // 26: VIRAGE DROITE 4 (Chicane Ascari Sud-Ouest)
+  { x: 390, y: 840 },   // 27: Relance chicane
+  { x: 540, y: 910 },   // 28: Entrée ligne droite de départ
+  { x: 720, y: 930 }    // 29: Retour stands
 ];
 
 // Zones de Vide : portions sans barrières où une sortie de piste entraîne une chute et un respawn au départ
-const VOID_ZONE_BRIDGE_START = 135;
-const VOID_ZONE_BRIDGE_END = 170;
-const VOID_ZONE_CLIFF_START = 228;
-const VOID_ZONE_CLIFF_END = 252;
+const VOID_ZONE_BRIDGE_START = 134;
+const VOID_ZONE_BRIDGE_END = 158;
+const VOID_ZONE_CLIFF_START = 268;
+const VOID_ZONE_CLIFF_END = 278;
 
 // ============================================================================
 // DOM ELEMENTS
@@ -264,10 +276,10 @@ function generateDecorations() {
   spectators.length = 0;
   tireBarriers.length = 0;
 
-  // Spectators in two grandstands (bottom main straight & north hill)
+  // Spectators in two grandstands (bottom main straight & infield central tribune)
   const standConfigs = [
     { startX: 720, startY: 1010, cols: 28, rows: 3, dx: 18, dy: 14, angle: 0 },
-    { startX: 380, startY: 96, cols: 20, rows: 2, dx: 18, dy: 14, angle: 0 }
+    { startX: 820, startY: 480, cols: 18, rows: 2, dx: 18, dy: 14, angle: 0 }
   ];
   const palette = ['#ff006e', '#00f5d4', '#ffbe0b', '#3a86ff', '#fb5607', '#ffffff', '#a855f7'];
 
@@ -286,11 +298,12 @@ function generateDecorations() {
 
   // Stylized top-down trees placed safely away from the asphalt & void
   const candidateTrees = [
-    { x: 1420, y: 720, r: 28 }, { x: 1480, y: 660, r: 24 }, { x: 1350, y: 640, r: 26 },
-    { x: 620, y: 620, r: 32 }, { x: 680, y: 660, r: 25 }, { x: 540, y: 580, r: 28 },
-    { x: 860, y: 150, r: 30 }, { x: 920, y: 120, r: 24 }, { x: 1680, y: 200, r: 32 },
-    { x: 1740, y: 260, r: 26 }, { x: 1820, y: 920, r: 34 }, { x: 100, y: 920, r: 30 },
-    { x: 120, y: 150, r: 26 }, { x: 180, y: 180, r: 24 }, { x: 1120, y: 710, r: 26 }
+    { x: 880, y: 580, r: 28 }, { x: 1060, y: 560, r: 26 }, { x: 1220, y: 440, r: 28 },
+    { x: 1440, y: 440, r: 25 }, { x: 1580, y: 150, r: 30 }, { x: 1420, y: 150, r: 26 },
+    { x: 1200, y: 150, r: 28 }, { x: 1840, y: 90, r: 32 }, { x: 1840, y: 400, r: 26 },
+    { x: 1840, y: 920, r: 34 }, { x: 100, y: 880, r: 30 }, { x: 100, y: 960, r: 28 },
+    { x: 380, y: 970, r: 26 }, { x: 480, y: 240, r: 26 }, { x: 520, y: 320, r: 24 },
+    { x: 500, y: 420, r: 28 }, { x: 920, y: 800, r: 26 }, { x: 1380, y: 800, r: 30 }
   ];
 
   candidateTrees.forEach((t) => {
@@ -324,11 +337,11 @@ function renderStaticTrack() {
     c.fill();
   }
 
-  // 2. Void Zone 1: Abyss Canyon underneath the suspended bridge (waypoints 135 to 170)
+  // 2. Void Zone 1: Abyss Canyon underneath the suspended bridge (waypoints 134 to 158)
   c.save();
   c.beginPath();
-  c.ellipse(1010, 350, 250, 145, -0.08, 0, Math.PI * 2);
-  const abyssGrad = c.createRadialGradient(1010, 350, 25, 1010, 350, 250);
+  c.ellipse(1200, 300, 280, 150, 0.02, 0, Math.PI * 2);
+  const abyssGrad = c.createRadialGradient(1200, 300, 25, 1200, 300, 280);
   abyssGrad.addColorStop(0, '#020617');
   abyssGrad.addColorStop(0.55, '#090d16');
   abyssGrad.addColorStop(0.85, '#0369a1');
@@ -338,19 +351,19 @@ function renderStaticTrack() {
   // Cyber grid lines inside the abyss depth
   c.strokeStyle = 'rgba(0, 245, 212, 0.16)';
   c.lineWidth = 1.5;
-  for (let gy = 230; gy <= 470; gy += 32) {
+  for (let gy = 180; gy <= 420; gy += 32) {
     c.beginPath();
-    c.moveTo(780, gy);
-    c.lineTo(1240, gy);
+    c.moveTo(930, gy);
+    c.lineTo(1470, gy);
     c.stroke();
   }
   c.restore();
 
-  // Void Zone 2: Western Cliffside Abyss (waypoints 228 to 252)
+  // Void Zone 2: Western Cliffside Abyss (waypoints 268 to 278)
   c.save();
   c.beginPath();
-  c.ellipse(100, 560, 140, 210, 0.05, 0, Math.PI * 2);
-  const cliffGrad = c.createRadialGradient(70, 560, 20, 100, 560, 160);
+  c.ellipse(80, 640, 150, 180, 0.05, 0, Math.PI * 2);
+  const cliffGrad = c.createRadialGradient(60, 640, 20, 80, 640, 160);
   cliffGrad.addColorStop(0, '#020617');
   cliffGrad.addColorStop(0.7, '#0f172a');
   cliffGrad.addColorStop(1, 'rgba(15, 41, 30, 0)');
@@ -474,7 +487,7 @@ function renderStaticTrack() {
   // 9. SOLID GUARDRAILS / WALLS (Anti-Cut Barriers preventing cutting across the grass)
   const wallDistance = TRACK_HALF_WIDTH + 6;
 
-  // A. Inner Wall (everywhere except bridge void 135..170)
+  // A. Inner Wall (everywhere except bridge void 134..158)
   c.save();
   for (let i = 0; i < trackWaypoints.length; i++) {
     const isVoidInner = i >= VOID_ZONE_BRIDGE_START && i <= VOID_ZONE_BRIDGE_END;
@@ -522,7 +535,7 @@ function renderStaticTrack() {
     }
   }
 
-  // B. Outer Wall (everywhere except bridge void 135..170 and cliff void 228..252)
+  // B. Outer Wall (everywhere except bridge void 134..158 and cliff void 268..278)
   for (let i = 0; i < trackWaypoints.length; i++) {
     const isVoidOuter = (i >= VOID_ZONE_BRIDGE_START && i <= VOID_ZONE_BRIDGE_END) ||
                         (i >= VOID_ZONE_CLIFF_START && i <= VOID_ZONE_CLIFF_END);
@@ -657,12 +670,12 @@ function renderStaticTrack() {
   c.strokeStyle = '#334155';
   c.lineWidth = 3;
   c.beginPath();
-  c.roundRect(700, 992, 530, 62, 10);
+  c.roundRect(700, 995, 540, 60, 10);
   c.fill();
   c.stroke();
 
   c.beginPath();
-  c.roundRect(360, 80, 390, 46, 10);
+  c.roundRect(800, 465, 360, 46, 10);
   c.fill();
   c.stroke();
   c.restore();
@@ -1462,7 +1475,7 @@ function updateSingleCarPhysics(car, dtNorm, dtSec, isInteractiveRace) {
   }
 
   // Determine top speed & acceleration
-  const baseMaxSpeed = car.isBot ? 7.65 : 7.85;
+  const baseMaxSpeed = car.isBot ? 7.80 : 7.85;
   let maxSpeed = baseMaxSpeed;
 
   if (car.nitroTimer > 0) {
